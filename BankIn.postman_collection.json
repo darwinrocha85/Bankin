@@ -1,0 +1,279 @@
+{
+	"info": {
+		"_postman_id": "f3dcd093-68a1-4768-8886-7b9cac02b576",
+		"name": "BankIn",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "2106359"
+	},
+	"item": [
+		{
+			"name": "http://localhost:8080/card/person",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"darin ropcha\",\r\n    \"userName\": \"darwin prueba\",\r\n    \"date\": \"2024-05-23\",\r\n    \"productId\": 112790\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/card/person",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"card",
+						"person"
+					]
+				},
+				"description": "permite crear una peersona"
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8080/card/persons",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"darin ropcha\",\r\n    \"userName\": \"darwin prueba\",\r\n    \"date\": \"2024-05-23\",\r\n    \"productId\": 112790\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/card/persons",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"card",
+						"persons"
+					]
+				},
+				"description": "permite consultar personas"
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8080/card/112790/number",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/card/112790/number",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"card",
+						"112790",
+						"number"
+					]
+				},
+				"description": "enviando un number (prodcut_id) perimte crear un card"
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8080/card/enroll",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"cardId\": \"112790-8573954321541640351\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/card/enroll",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"card",
+						"enroll"
+					]
+				},
+				"description": "cambia el estatus de una Card"
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8080/card/cardCredits",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/card/cardCredits",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"card",
+						"cardCredits"
+					]
+				},
+				"description": "lista todas las cards"
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8080/card/balance",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"cardId\": \"112790-8573954321541640351\",\r\n    \"balance\": 99999999\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/card/balance",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"card",
+						"balance"
+					]
+				},
+				"description": "actualiza el balance de una card"
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8080/card/balance/112790-8573954321541640351",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/card/balance/112790-8573954321541640351",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"card",
+						"balance",
+						"112790-8573954321541640351"
+					]
+				},
+				"description": "consulta el balance de una card"
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8080/transaction/purchase",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"cardId\":1127905465456,\r\n    \"price\": 15858\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/transaction/purchase",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"transaction",
+						"purchase"
+					]
+				},
+				"description": "realiza una transaccions (compra)"
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8080/transaction/52",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/transaction/52",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"transaction",
+						"52"
+					]
+				},
+				"description": "conuslta una transaccion"
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:8080/transaction/anulation",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"cardId\": \"1127905465456\",\r\n    \"transactionId\":103\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/transaction/anulation",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"transaction",
+						"anulation"
+					]
+				},
+				"description": "anula una trasaccion"
+			},
+			"response": []
+		}
+	]
+}
