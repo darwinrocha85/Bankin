@@ -1,4 +1,4 @@
-Este mini proyecto es una ejemplo, deliberadamente incompleto, de como se puede configurar una API REST en Java Spring Boot
+Este mini proyecto es un ejemplo, deliberadamente incompleto, de como se puede configurar una API REST en Java Spring Boot
 
 en la coleccion postman estan descripta las acciones
 
