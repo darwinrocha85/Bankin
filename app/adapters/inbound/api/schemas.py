@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.models import CardStatus, Role, TransactionStatus, TransactionType
 
@@ -64,6 +64,14 @@ class CardOut(BaseModel):
 class PurchaseCreate(BaseModel):
     card_id: str
     amount: float
+    note: str | None = Field(
+        default=None,
+        description=(
+            "Identifica desde dónde se hizo el cobro (ej. \"App POS Tienda X\"). "
+            "Pensado para que cada app externa que llame a este endpoint mande "
+            "su propio nombre, así el gerente puede ver el origen de cada cargo."
+        ),
+    )
 
 
 class RechargeCreate(BaseModel):
@@ -79,6 +87,7 @@ class TransactionOut(BaseModel):
     type: TransactionType
     amount: float
     status: TransactionStatus
+    note: str | None = None
     created_at: datetime
     updated_at: datetime
 

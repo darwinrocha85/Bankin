@@ -97,6 +97,11 @@ class Transaction:
     type: TransactionType
     amount: float
     status: TransactionStatus = TransactionStatus.COMPLETED
+    note: str | None = None
+    """Quién hizo la compra: identifica la app de origen (ej. "App POS
+    Tienda X"). Pensado sobre todo para POST /transactions/purchase, el
+    endpoint de cobro llamado desde otras apps -- así el gerente puede ver
+    de dónde vino cada cargo."""
     id: int | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)

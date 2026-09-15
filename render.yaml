@@ -15,3 +15,5 @@ services:
         value: "true"
       - key: ALLOWED_ORIGINS
         sync: false
+      - key: EXTERNAL_API_KEY
+        sync: false

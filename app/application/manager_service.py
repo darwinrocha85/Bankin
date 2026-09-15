@@ -31,7 +31,13 @@ class ManagerService:
         self._cards = card_repository
         self._transactions = transaction_repository
 
-    def _require_manager(self, manager_id: int) -> None:
+    def require_manager(self, manager_id: int) -> None:
+        """Verifica que manager_id sea un cliente existente con role=MANAGER.
+
+        Público (sin "_") porque otros routers -- no solo el de gerente --
+        también necesitan exigir este chequeo, por ejemplo anular una
+        transacción (ver routers/transactions.py).
+        """
         client = self._clients.find_by_id(manager_id)
         if client is None:
             raise ManagerNotFoundError(f"No existe el cliente {manager_id}")
@@ -41,7 +47,7 @@ class ManagerService:
             )
 
     def get_bank_overview(self, manager_id: int) -> dict:
-        self._require_manager(manager_id)
+        self.require_manager(manager_id)
 
         clients = self._clients.find_all()
         cards = self._cards.find_all()
@@ -82,15 +88,15 @@ class ManagerService:
         }
 
     def list_all_clients(self, manager_id: int):
-        self._require_manager(manager_id)
+        self.require_manager(manager_id)
         return self._clients.find_all()
 
     def list_all_cards(self, manager_id: int):
-        self._require_manager(manager_id)
+        self.require_manager(manager_id)
         return self._cards.find_all()
 
     def list_all_transactions(self, manager_id: int):
-        self._require_manager(manager_id)
+        self.require_manager(manager_id)
         return self._transactions.find_all()
 
     def get_client_overview(self, manager_id: int, client_id: int) -> dict:
@@ -98,7 +104,7 @@ class ManagerService:
         transacciones -- 'toda la info relacionada' que pediste que el
         gerente pueda ver.
         """
-        self._require_manager(manager_id)
+        self.require_manager(manager_id)
 
         client = self._clients.find_by_id(client_id)
         if client is None:

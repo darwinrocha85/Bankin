@@ -8,13 +8,22 @@ además de compra y anulación. Rutas modernizadas respecto a Java:
     POST /transaction/anulation          -> POST   /transactions/{id}/annul
     GET  /transaction/all                -> GET    /transactions
     GET  /transaction/{transactionId}    -> GET    /transactions/{id}
+
+Dos reglas nuevas:
+- POST /transactions/purchase es el endpoint de "cobro" pensado para que lo
+  llamen OTRAS apps (dada una tarjeta y un monto, genera un cargo). Está
+  protegido opcionalmente con X-Api-Key (ver security.py).
+- POST /transactions/{id}/annul solo lo puede hacer el gerente: recibe
+  manager_id igual que las rutas de /manager/* y valida el rol.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.adapters.inbound.api.deps import get_transaction_service
+from app.adapters.inbound.api.deps import get_manager_service, get_transaction_service
 from app.adapters.inbound.api.schemas import PurchaseCreate, RechargeCreate, TransactionOut
+from app.adapters.inbound.api.security import require_api_key
+from app.application.manager_service import ManagerNotFoundError, ManagerService, NotAManagerError
 from app.application.transaction_service import (
     CardNotActiveError,
     CardNotFoundForTransactionError,
@@ -46,10 +55,15 @@ def list_transactions_for_card(card_id: str, service: TransactionService = Depen
     return service.list_for_card(card_id)
 
 
-@router.post("/purchase", response_model=TransactionOut, status_code=201)
+@router.post(
+    "/purchase",
+    response_model=TransactionOut,
+    status_code=201,
+    dependencies=[Depends(require_api_key)],
+)
 def purchase(payload: PurchaseCreate, service: TransactionService = Depends(get_transaction_service)):
     try:
-        return service.purchase(payload.card_id, payload.amount)
+        return service.purchase(payload.card_id, payload.amount, payload.note)
     except CardNotFoundForTransactionError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (CardNotActiveError, InsufficientFundsError, InvalidAmountError) as exc:
@@ -71,7 +85,21 @@ def recharge(payload: RechargeCreate, service: TransactionService = Depends(get_
 
 
 @router.post("/{transaction_id}/annul", response_model=TransactionOut)
-def annul(transaction_id: int, service: TransactionService = Depends(get_transaction_service)):
+def annul(
+    transaction_id: int,
+    manager_id: int = Query(
+        ..., description="Id del cliente que actúa como gerente; solo el gerente puede anular"
+    ),
+    service: TransactionService = Depends(get_transaction_service),
+    manager_service: ManagerService = Depends(get_manager_service),
+):
+    try:
+        manager_service.require_manager(manager_id)
+    except ManagerNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except NotAManagerError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
     try:
         return service.annul(transaction_id)
     except TransactionNotFoundError as exc:

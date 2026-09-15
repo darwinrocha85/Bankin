@@ -16,6 +16,7 @@ def _to_domain(row: TransactionORM) -> Transaction:
         type=TransactionType(row.type),
         amount=row.amount,
         status=TransactionStatus(row.status),
+        note=row.note,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -32,6 +33,7 @@ class SqliteTransactionRepository(TransactionRepository):
                 type=transaction.type.value,
                 amount=transaction.amount,
                 status=transaction.status.value,
+                note=transaction.note,
                 created_at=transaction.created_at,
                 updated_at=transaction.updated_at,
             )

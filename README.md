@@ -154,9 +154,42 @@ nuevo adaptador que implemente los mismos puertos de `app/domain/ports.py`
 | GET    | /transactions                 | Lista todas                       |
 | GET    | /transactions/{id}            | Obtiene una                       |
 | GET    | /transactions/card/{card_id}  | Historial de una tarjeta          |
-| POST   | /transactions/purchase        | Compra (descuenta saldo)          |
+| POST   | /transactions/purchase        | Compra / **cobro** (descuenta saldo) — pensado para que lo llamen otras apps, ver más abajo |
 | POST   | /transactions/recharge        | Recarga saldo                     |
-| POST   | /transactions/{id}/annul      | Anula (revierte el balance)       |
+| POST   | /transactions/{id}/annul      | Anula (revierte el balance) — **solo gerente**, requiere `?manager_id=` |
+
+#### POST /transactions/purchase — endpoint de cobro para otras apps
+
+Pensado para que una app externa (un POS, otro sistema) le cobre a una
+tarjeta sin pasar por este frontend:
+
+```
+POST /transactions/purchase
+Content-Type: application/json
+X-Api-Key: <tu EXTERNAL_API_KEY>     (solo si la configuraste, ver .env.example)
+
+{"card_id": "1234567890123456", "amount": 49.90, "note": "App POS Tienda X"}
+```
+
+Si no defines `EXTERNAL_API_KEY` en el backend, el header no se exige (así
+el demo sigue funcionando sin configurar nada extra). En cuanto la defines,
+toda llamada a este endpoint sin el header correcto recibe `401`. Ver la
+nota de seguridad en `app/adapters/inbound/api/security.py` — para un banco
+real esto necesitaría autenticación de verdad, esta clave es solo una
+barrera simple.
+
+`note` es opcional (puede omitirse o mandar `null`) y sirve para identificar
+desde qué app vino cada cobro -- cada app que llame a este endpoint debería
+mandar su propio nombre ahí. Este mismo frontend lo hace: cuando el cliente
+compra desde su vista, manda `"note": "BankIn Frontend"`. El gerente ve esta
+columna ("Origen") en el panel de Transacciones y en la vista 360 de cada
+cliente.
+
+#### POST /transactions/{id}/annul — solo gerente
+
+Igual que las rutas de `/manager/*`: requiere `?manager_id=<id de un
+cliente con role=MANAGER>`. Devuelve `404` si ese cliente no existe, `403`
+si existe pero no es gerente.
 
 ### Gerente
 | Método | Ruta                       | Descripción                           |
@@ -167,4 +200,5 @@ nuevo adaptador que implemente los mismos puertos de `app/domain/ports.py`
 | GET    | /manager/cards             | Todas las tarjetas del banco              |
 | GET    | /manager/transactions      | Todas las transacciones del banco         |
 
-Todas las rutas de gerente requieren `?manager_id=<id de un cliente con role=MANAGER>`.
+Todas las rutas de gerente (y también anular una transacción) requieren
+`?manager_id=<id de un cliente con role=MANAGER>`.

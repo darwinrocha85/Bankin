@@ -31,6 +31,22 @@ def init_db() -> None:
     from app.adapters.outbound.persistence import orm_models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    _migrate_add_missing_columns()
+
+
+def _migrate_add_missing_columns() -> None:
+    """create_all() solo crea tablas que falten, no columnas nuevas en una
+    tabla que ya existía (por ejemplo, un bankin.db local de antes de que
+    existiera la columna "note" en transactions). Este chequeo simple la
+    agrega si hace falta, para no obligar a borrar el archivo .db a mano.
+    En Render (disco efímero) esto no aplica -- ahí cada deploy arranca con
+    una tabla nueva que ya incluye la columna.
+    """
+    with engine.connect() as conn:
+        existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(transactions)")}
+        if "note" not in existing:
+            conn.exec_driver_sql("ALTER TABLE transactions ADD COLUMN note VARCHAR")
+            conn.commit()
 
 
 def get_session():

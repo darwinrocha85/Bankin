@@ -47,7 +47,7 @@ class TransactionService:
             raise CardNotFoundForTransactionError(f"No existe la tarjeta {card_id}")
         return card
 
-    def purchase(self, card_id: str, amount: float) -> Transaction:
+    def purchase(self, card_id: str, amount: float, note: str | None = None) -> Transaction:
         if amount <= 0:
             raise InvalidAmountError("El monto de la compra debe ser mayor que cero")
 
@@ -63,7 +63,9 @@ class TransactionService:
         card.updated_at = datetime.utcnow()
         self._cards.save(card)
 
-        transaction = Transaction(card_id=card_id, type=TransactionType.PURCHASE, amount=amount)
+        transaction = Transaction(
+            card_id=card_id, type=TransactionType.PURCHASE, amount=amount, note=note
+        )
         return self._transactions.save(transaction)
 
     def recharge(self, card_id: str, amount: float) -> Transaction:
