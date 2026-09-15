@@ -9,7 +9,7 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.adapters.inbound.api.deps import get_card_service
 from app.adapters.inbound.api.schemas import BalanceOut, BalanceUpdate, CardCreate, CardOut
@@ -19,7 +19,14 @@ router = APIRouter(prefix="/cards", tags=["cards"])
 
 
 @router.get("", response_model=list[CardOut])
-def list_cards(service: CardService = Depends(get_card_service)):
+def list_cards(
+    client_id: int | None = Query(
+        default=None, description="Filtra las tarjetas de un cliente (para la vista de cliente)"
+    ),
+    service: CardService = Depends(get_card_service),
+):
+    if client_id is not None:
+        return service.list_cards_for_client(client_id)
     return service.list_cards()
 
 
