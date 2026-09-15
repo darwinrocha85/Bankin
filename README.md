@@ -157,6 +157,7 @@ nuevo adaptador que implemente los mismos puertos de `app/domain/ports.py`
 | POST   | /transactions/purchase        | Compra / **cobro** (descuenta saldo) — pensado para que lo llamen otras apps, ver más abajo |
 | POST   | /transactions/recharge        | Recarga saldo                     |
 | POST   | /transactions/{id}/annul      | Anula (revierte el balance) — **solo gerente**, requiere `?manager_id=` |
+| POST   | /transactions/{id}/reverse    | Reversa por id — pensado para **otras apps** (ej. naveSpace), sin `manager_id`, ver más abajo |
 
 #### POST /transactions/purchase — endpoint de cobro para otras apps
 
@@ -190,6 +191,26 @@ cliente.
 Igual que las rutas de `/manager/*`: requiere `?manager_id=<id de un
 cliente con role=MANAGER>`. Devuelve `404` si ese cliente no existe, `403`
 si existe pero no es gerente.
+
+#### POST /transactions/{id}/reverse — endpoint de reversa para otras apps
+
+Equivalente a `/annul`, pero pensado para que lo llame **otra app** (ej.
+naveSpace, cuando cancela una entrada que ya se había cobrado), no el panel
+de BankIn -- por eso no pide `manager_id`. Reutiliza exactamente la misma
+regla de negocio que `/annul` (mismo caso de uso, dos puertas de entrada
+distintas): una compra revertida devuelve el dinero a la tarjeta, una
+recarga revertida lo retira (y falla con `400` si ese dinero ya se gastó en
+una compra posterior).
+
+```
+POST /transactions/42/reverse
+X-Api-Key: <tu EXTERNAL_API_KEY>     (solo si la configuraste, ver .env.example)
+```
+
+Respuestas: `200` con la transacción ya en estado `ANNULLED`, `404` si el id
+no existe, `400` si ya estaba anulada o si no se puede retirar una recarga
+ya gastada, `401` si falta/no coincide `X-Api-Key` (cuando está configurada).
+No requiere body.
 
 ### Gerente
 | Método | Ruta                       | Descripción                           |
