@@ -1,279 +1,159 @@
 {
 	"info": {
-		"_postman_id": "f3dcd093-68a1-4768-8886-7b9cac02b576",
-		"name": "BankIn",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "2106359"
+		"_postman_id": "bankin-python-collection",
+		"name": "BankIn (Python)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:8000" },
+		{ "key": "clientId", "value": "1" },
+		{ "key": "managerId", "value": "" },
+		{ "key": "cardId", "value": "" },
+		{ "key": "transactionId", "value": "" }
+	],
 	"item": [
 		{
-			"name": "http://localhost:8080/card/person",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"name\": \"darin ropcha\",\r\n    \"userName\": \"darwin prueba\",\r\n    \"date\": \"2024-05-23\",\r\n    \"productId\": 112790\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
+			"name": "Clientes",
+			"item": [
+				{
+					"name": "Crear cliente",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": { "mode": "raw", "raw": "{\n    \"name\": \"Darwin Rocha\",\n    \"username\": \"darwin\",\n    \"product_id\": 112790\n}" },
+						"url": { "raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"] }
 					}
 				},
-				"url": {
-					"raw": "http://localhost:8080/card/person",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"card",
-						"person"
-					]
-				},
-				"description": "permite crear una peersona"
-			},
-			"response": []
-		},
-		{
-			"name": "http://localhost:8080/card/persons",
-			"protocolProfileBehavior": {
-				"disableBodyPruning": true
-			},
-			"request": {
-				"method": "GET",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"name\": \"darin ropcha\",\r\n    \"userName\": \"darwin prueba\",\r\n    \"date\": \"2024-05-23\",\r\n    \"productId\": 112790\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
+				{
+					"name": "Crear gerente",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": { "mode": "raw", "raw": "{\n    \"name\": \"Sebastian Jefe\",\n    \"username\": \"sebas\",\n    \"product_id\": 999,\n    \"role\": \"MANAGER\"\n}" },
+						"url": { "raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"] }
 					}
 				},
-				"url": {
-					"raw": "http://localhost:8080/card/persons",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"card",
-						"persons"
-					]
+				{
+					"name": "Listar clientes",
+					"request": { "method": "GET", "url": { "raw": "{{baseUrl}}/clients", "host": ["{{baseUrl}}"], "path": ["clients"] } }
 				},
-				"description": "permite consultar personas"
-			},
-			"response": []
-		},
-		{
-			"name": "http://localhost:8080/card/112790/number",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:8080/card/112790/number",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"card",
-						"112790",
-						"number"
-					]
+				{
+					"name": "Obtener cliente",
+					"request": { "method": "GET", "url": { "raw": "{{baseUrl}}/clients/{{clientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{clientId}}"] } }
 				},
-				"description": "enviando un number (prodcut_id) perimte crear un card"
-			},
-			"response": []
-		},
-		{
-			"name": "http://localhost:8080/card/enroll",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"cardId\": \"112790-8573954321541640351\"\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
+				{
+					"name": "Actualizar cliente",
+					"request": {
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": { "mode": "raw", "raw": "{\n    \"name\": \"Darwin Rocha\",\n    \"username\": \"darwin\",\n    \"product_id\": 112790\n}" },
+						"url": { "raw": "{{baseUrl}}/clients/{{clientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{clientId}}"] }
 					}
 				},
-				"url": {
-					"raw": "http://localhost:8080/card/enroll",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"card",
-						"enroll"
-					]
-				},
-				"description": "cambia el estatus de una Card"
-			},
-			"response": []
+				{
+					"name": "Eliminar cliente",
+					"request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/clients/{{clientId}}", "host": ["{{baseUrl}}"], "path": ["clients", "{{clientId}}"] } }
+				}
+			]
 		},
 		{
-			"name": "http://localhost:8080/card/cardCredits",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:8080/card/cardCredits",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"card",
-						"cardCredits"
-					]
-				},
-				"description": "lista todas las cards"
-			},
-			"response": []
-		},
-		{
-			"name": "http://localhost:8080/card/balance",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"cardId\": \"112790-8573954321541640351\",\r\n    \"balance\": 99999999\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
+			"name": "Tarjetas",
+			"item": [
+				{
+					"name": "Emitir tarjeta",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": { "mode": "raw", "raw": "{\n    \"client_id\": {{clientId}}\n}" },
+						"url": { "raw": "{{baseUrl}}/cards", "host": ["{{baseUrl}}"], "path": ["cards"] }
 					}
 				},
-				"url": {
-					"raw": "http://localhost:8080/card/balance",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"card",
-						"balance"
-					]
+				{
+					"name": "Listar tarjetas",
+					"request": { "method": "GET", "url": { "raw": "{{baseUrl}}/cards", "host": ["{{baseUrl}}"], "path": ["cards"] } }
 				},
-				"description": "actualiza el balance de una card"
-			},
-			"response": []
-		},
-		{
-			"name": "http://localhost:8080/card/balance/112790-8573954321541640351",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:8080/card/balance/112790-8573954321541640351",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"card",
-						"balance",
-						"112790-8573954321541640351"
-					]
+				{
+					"name": "Activar tarjeta",
+					"request": { "method": "POST", "url": { "raw": "{{baseUrl}}/cards/{{cardId}}/activate", "host": ["{{baseUrl}}"], "path": ["cards", "{{cardId}}", "activate"] } }
 				},
-				"description": "consulta el balance de una card"
-			},
-			"response": []
-		},
-		{
-			"name": "http://localhost:8080/transaction/purchase",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"cardId\":1127905465456,\r\n    \"price\": 15858\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
+				{
+					"name": "Cancelar tarjeta",
+					"request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/cards/{{cardId}}", "host": ["{{baseUrl}}"], "path": ["cards", "{{cardId}}"] } }
+				},
+				{
+					"name": "Fijar balance (manual)",
+					"request": {
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": { "mode": "raw", "raw": "{\n    \"balance\": 5000\n}" },
+						"url": { "raw": "{{baseUrl}}/cards/{{cardId}}/balance", "host": ["{{baseUrl}}"], "path": ["cards", "{{cardId}}", "balance"] }
 					}
 				},
-				"url": {
-					"raw": "http://localhost:8080/transaction/purchase",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"transaction",
-						"purchase"
-					]
-				},
-				"description": "realiza una transaccions (compra)"
-			},
-			"response": []
+				{
+					"name": "Consultar balance",
+					"request": { "method": "GET", "url": { "raw": "{{baseUrl}}/cards/{{cardId}}/balance", "host": ["{{baseUrl}}"], "path": ["cards", "{{cardId}}", "balance"] } }
+				}
+			]
 		},
 		{
-			"name": "http://localhost:8080/transaction/52",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "http://localhost:8080/transaction/52",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"transaction",
-						"52"
-					]
-				},
-				"description": "conuslta una transaccion"
-			},
-			"response": []
-		},
-		{
-			"name": "http://localhost:8080/transaction/anulation",
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "raw",
-					"raw": "{\r\n    \"cardId\": \"1127905465456\",\r\n    \"transactionId\":103\r\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
+			"name": "Transacciones",
+			"item": [
+				{
+					"name": "Recargar saldo",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": { "mode": "raw", "raw": "{\n    \"card_id\": \"{{cardId}}\",\n    \"amount\": 500\n}" },
+						"url": { "raw": "{{baseUrl}}/transactions/recharge", "host": ["{{baseUrl}}"], "path": ["transactions", "recharge"] }
 					}
 				},
-				"url": {
-					"raw": "http://localhost:8080/transaction/anulation",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"port": "8080",
-					"path": [
-						"transaction",
-						"anulation"
-					]
+				{
+					"name": "Comprar",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": { "mode": "raw", "raw": "{\n    \"card_id\": \"{{cardId}}\",\n    \"amount\": 150\n}" },
+						"url": { "raw": "{{baseUrl}}/transactions/purchase", "host": ["{{baseUrl}}"], "path": ["transactions", "purchase"] }
+					}
 				},
-				"description": "anula una trasaccion"
-			},
-			"response": []
+				{
+					"name": "Anular transacción",
+					"request": { "method": "POST", "url": { "raw": "{{baseUrl}}/transactions/{{transactionId}}/annul", "host": ["{{baseUrl}}"], "path": ["transactions", "{{transactionId}}", "annul"] } }
+				},
+				{
+					"name": "Listar transacciones",
+					"request": { "method": "GET", "url": { "raw": "{{baseUrl}}/transactions", "host": ["{{baseUrl}}"], "path": ["transactions"] } }
+				},
+				{
+					"name": "Transacciones de una tarjeta",
+					"request": { "method": "GET", "url": { "raw": "{{baseUrl}}/transactions/card/{{cardId}}", "host": ["{{baseUrl}}"], "path": ["transactions", "card", "{{cardId}}"] } }
+				}
+			]
+		},
+		{
+			"name": "Gerente",
+			"item": [
+				{
+					"name": "Resumen del banco",
+					"request": { "method": "GET", "url": { "raw": "{{baseUrl}}/manager/overview?manager_id={{managerId}}", "host": ["{{baseUrl}}"], "path": ["manager", "overview"], "query": [{ "key": "manager_id", "value": "{{managerId}}" }] } }
+				},
+				{
+					"name": "Todos los clientes",
+					"request": { "method": "GET", "url": { "raw": "{{baseUrl}}/manager/clients?manager_id={{managerId}}", "host": ["{{baseUrl}}"], "path": ["manager", "clients"], "query": [{ "key": "manager_id", "value": "{{managerId}}" }] } }
+				},
+				{
+					"name": "Vista 360 de un cliente",
+					"request": { "method": "GET", "url": { "raw": "{{baseUrl}}/manager/clients/{{clientId}}?manager_id={{managerId}}", "host": ["{{baseUrl}}"], "path": ["manager", "clients", "{{clientId}}"], "query": [{ "key": "manager_id", "value": "{{managerId}}" }] } }
+				},
+				{
+					"name": "Todas las tarjetas",
+					"request": { "method": "GET", "url": { "raw": "{{baseUrl}}/manager/cards?manager_id={{managerId}}", "host": ["{{baseUrl}}"], "path": ["manager", "cards"], "query": [{ "key": "manager_id", "value": "{{managerId}}" }] } }
+				},
+				{
+					"name": "Todas las transacciones",
+					"request": { "method": "GET", "url": { "raw": "{{baseUrl}}/manager/transactions?manager_id={{managerId}}", "host": ["{{baseUrl}}"], "path": ["manager", "transactions"], "query": [{ "key": "manager_id", "value": "{{managerId}}" }] } }
+				}
+			]
 		}
 	]
 }
