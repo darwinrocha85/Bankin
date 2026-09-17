@@ -42,18 +42,19 @@ ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")
 # Orígenes de desarrollo local: siempre permitidos, en cualquier entorno,
 # para no tener que tocar variables de entorno solo para probar en local
 # contra un backend ya desplegado.
-LOCAL_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+#
+# Va por regex (cualquier puerto en localhost/127.0.0.1) en vez de una lista
+# fija con el puerto 5173 -- si tienes más de un proyecto Vite corriendo a
+# la vez (naveSpace, el portafolio, BankIn...), el que arranca después cae
+# en otro puerto (5174, 5175...) porque 5173 ya está ocupado, y con una
+# lista fija ese preflight se rechazaba con 400.
+LOCAL_ORIGIN_REGEX = r"^https?://(localhost|127\.0\.0\.1):\d+$"
 
 # Orígenes adicionales (por ejemplo, la URL de Firebase Hosting una vez
 # desplegado el frontend) vienen de una variable de entorno para no tener
 # que tocar código cada vez que cambian.
 _extra_origins = os.environ.get("ALLOWED_ORIGINS", "")
 EXTRA_ORIGINS = [origin.strip() for origin in _extra_origins.split(",") if origin.strip()]
-
-ALLOWED_ORIGINS = LOCAL_ORIGINS + EXTRA_ORIGINS
 
 
 @asynccontextmanager
@@ -75,7 +76,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=EXTRA_ORIGINS,
+    allow_origin_regex=LOCAL_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
