@@ -4,19 +4,6 @@ Demo de banco construida en **Python** con **arquitectura hexagonal** (puertos
 y adaptadores), **FastAPI** y **SQLite**. Tiene un frontend en React aparte,
 en la carpeta hermana `Bankin-frontend`.
 
-> Este proyecto empezó como un ejemplo en Java/Spring Boot y se migró
-> progresivamente a Python. Ya no queda código Java en el repo.
-
-## Por qué SQLite (y no H2)
-
-H2 es una base embebida específica de Java; no existe en el mundo Python.
-El equivalente natural aquí es **SQLite en archivo** (`bankin.db`, no
-`:memory:`), así que los datos persisten entre reinicios del servidor.
-
-⚠️ **Excepción importante en Render** (ver la sección de despliegue más
-abajo): el disco del plan gratuito de Render es efímero, así que ahí
-`bankin.db` sí se pierde en cada redeploy — se soluciona con `AUTO_SEED`.
-
 ## Arquitectura hexagonal
 
 ```
@@ -185,6 +172,8 @@ mandar su propio nombre ahí. Este mismo frontend lo hace: cuando el cliente
 compra desde su vista, manda `"note": "BankIn Frontend"`. El gerente ve esta
 columna ("Origen") en el panel de Transacciones y en la vista 360 de cada
 cliente.
+> Guía paso a paso para integrar una app externa: ver `docs/BANKIN-INTEGRATION.md`
+> (documento canónico en este repo).
 
 #### POST /transactions/{id}/annul — solo gerente
 
