@@ -64,6 +64,7 @@ dashboard (Settings → Environment) — ahí no hace falta un archivo `.env`.
 | `ALLOWED_ORIGINS`  | Orígenes extra para CORS, separados por coma (la URL de Firebase Hosting).     | (vacío)   |
 | `AUTO_SEED`        | "true" para poblar la base con datos de prueba al arrancar si está vacía.      | `false`   |
 | `BANKIN_DB_PATH`   | Ruta del archivo SQLite.                                                       | `bankin.db` |
+| `EXTERNAL_API_KEY` | Si se define, `POST /transactions/purchase` y `/reverse` exigen header `X-Api-Key`. Sin definir, no se exige. | (vacío) |
 
 Los orígenes de desarrollo local (`localhost:5173`) siempre están permitidos
 por CORS, en cualquier entorno, así que no hace falta agregarlos a mano.
