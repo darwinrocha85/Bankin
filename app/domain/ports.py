@@ -13,7 +13,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from app.domain.models import Card, Client, Transaction
+from app.domain.models import (
+    Card,
+    Client,
+    Currency,
+    ExchangeRate,
+    PaymentOrder,
+    PaymentTranche,
+    Transaction,
+)
 
 
 class ClientRepository(ABC):
@@ -67,6 +75,39 @@ class CardRepository(ABC):
     def find_by_client_id(self, client_id: int) -> list[Card]:
         ...
 
+    @abstractmethod
+    def find_by_client_and_currency(self, client_id: int, currency: Currency) -> Card | None:
+        """Una tarjeta de un cliente en una moneda dada (máx. una por moneda)."""
+
+
+class ExchangeRateRepository(ABC):
+    """Puerto de salida para las tasas de cambio.
+
+    Las tasas son append-only: `save` siempre crea una fila nueva (el
+    histórico se conserva); la vigente de cada par es la más reciente.
+    """
+
+    @abstractmethod
+    def save(self, rate: ExchangeRate) -> ExchangeRate:
+        ...
+
+    @abstractmethod
+    def find_latest(self, base: Currency, target: Currency) -> ExchangeRate | None:
+        """Tasa vigente del par base->target, o None si nunca se cargó."""
+
+    @abstractmethod
+    def find_history(
+        self,
+        base: Currency | None = None,
+        target: Currency | None = None,
+        limit: int = 100,
+    ) -> list[ExchangeRate]:
+        """Histórico (más recientes primero), opcionalmente filtrado por par."""
+
+    @abstractmethod
+    def find_all_latest(self) -> list[ExchangeRate]:
+        """Una fila por par (base, target): la más reciente de cada uno."""
+
 
 class TransactionRepository(ABC):
     """Puerto de salida para persistir y consultar Transacciones."""
@@ -86,3 +127,36 @@ class TransactionRepository(ABC):
     @abstractmethod
     def find_by_card_id(self, card_id: str) -> list[Transaction]:
         ...
+
+
+class PaymentOrderRepository(ABC):
+    """Puerto de salida para órdenes de pago multitramo (ledger en EUR)."""
+
+    @abstractmethod
+    def save_order(self, order: PaymentOrder) -> PaymentOrder:
+        ...
+
+    @abstractmethod
+    def find_order_by_id(self, order_id: int) -> PaymentOrder | None:
+        ...
+
+    @abstractmethod
+    def find_order_by_reference(self, reference: str) -> PaymentOrder | None:
+        ...
+
+    @abstractmethod
+    def save_tranche(self, tranche: PaymentTranche) -> PaymentTranche:
+        ...
+
+    @abstractmethod
+    def find_tranches_by_order(self, order_id: int) -> list[PaymentTranche]:
+        ...
+
+    @abstractmethod
+    def find_tranche_by_id(self, tranche_id: int) -> PaymentTranche | None:
+        ...
+
+    @abstractmethod
+    def find_tranche_by_idempotency(self, order_id: int, key: str) -> PaymentTranche | None:
+        """Replay idempotente: misma key dentro de la orden devuelve el tramo."""
+

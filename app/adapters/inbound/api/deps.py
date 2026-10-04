@@ -15,12 +15,23 @@ from app.adapters.outbound.persistence.client_repository_sqlite import (
     SqliteClientRepository,
 )
 from app.adapters.outbound.persistence.db import get_session
+from app.adapters.outbound.persistence.exchange_rate_repository_sqlite import (
+    SqliteExchangeRateRepository,
+)
+from app.adapters.outbound.persistence.transaction_repository_sqlite import (
+    SqliteTransactionRepository,
+)
+from app.adapters.outbound.persistence.payment_order_repository_sqlite import (
+    SqlitePaymentOrderRepository,
+)
 from app.adapters.outbound.persistence.transaction_repository_sqlite import (
     SqliteTransactionRepository,
 )
 from app.application.card_service import CardService
 from app.application.client_service import ClientService
+from app.application.exchange_rate_service import ExchangeRateService
 from app.application.manager_service import ManagerService
+from app.application.payment_order_service import PaymentOrderService
 from app.application.transaction_service import TransactionService
 
 
@@ -38,7 +49,14 @@ def get_card_service(session: Session = Depends(get_session)) -> CardService:
 def get_transaction_service(session: Session = Depends(get_session)) -> TransactionService:
     transaction_repository = SqliteTransactionRepository(session)
     card_repository = SqliteCardRepository(session)
-    return TransactionService(transaction_repository, card_repository)
+    rate_service = ExchangeRateService(SqliteExchangeRateRepository(session))
+    return TransactionService(transaction_repository, card_repository, rate_service)
+
+
+def get_exchange_rate_service(
+    session: Session = Depends(get_session),
+) -> ExchangeRateService:
+    return ExchangeRateService(SqliteExchangeRateRepository(session))
 
 
 def get_manager_service(session: Session = Depends(get_session)) -> ManagerService:
@@ -46,3 +64,15 @@ def get_manager_service(session: Session = Depends(get_session)) -> ManagerServi
     card_repository = SqliteCardRepository(session)
     transaction_repository = SqliteTransactionRepository(session)
     return ManagerService(client_repository, card_repository, transaction_repository)
+
+
+def get_payment_order_service(
+    session: Session = Depends(get_session),
+) -> PaymentOrderService:
+    rate_service = ExchangeRateService(SqliteExchangeRateRepository(session))
+    tx_service = TransactionService(
+        SqliteTransactionRepository(session),
+        SqliteCardRepository(session),
+        rate_service,
+    )
+    return PaymentOrderService(SqlitePaymentOrderRepository(session), tx_service, rate_service)

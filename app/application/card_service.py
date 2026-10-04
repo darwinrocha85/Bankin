@@ -9,7 +9,7 @@ from __future__ import annotations
 import random
 from datetime import datetime
 
-from app.domain.models import Card, CardStatus
+from app.domain.models import Card, CardStatus, Currency
 from app.domain.ports import CardRepository, ClientRepository
 
 
@@ -19,6 +19,10 @@ class CardNotFoundError(Exception):
 
 class ClientNotFoundForCardError(Exception):
     pass
+
+
+class CardAlreadyExistsError(Exception):
+    """El cliente ya tiene una tarjeta en esa moneda (máx. una por moneda)."""
 
 
 def _generate_card_id(product_id: int) -> str:
@@ -41,19 +45,26 @@ class CardService:
         self._cards = card_repository
         self._clients = client_repository
 
-    def issue_card(self, client_id: int) -> Card:
-        """Emite una tarjeta nueva para un cliente existente. Equivale a
-        GET /card/{productId}/number en Java (aquí, más correctamente, es un POST).
+    def issue_card(self, client_id: int, currency: Currency = Currency.COP) -> Card:
+        """Emite una tarjeta nueva para un cliente existente, en la moneda
+        pedida. Cada cliente puede tener como máximo UNA tarjeta por moneda
+        (los saldos son independientes entre monedas).
         """
         client = self._clients.find_by_id(client_id)
         if client is None:
             raise ClientNotFoundForCardError(f"No existe el cliente {client_id}")
+
+        if self._cards.find_by_client_and_currency(client_id, currency) is not None:
+            raise CardAlreadyExistsError(
+                f"El cliente {client_id} ya tiene una tarjeta en {currency.value}"
+            )
 
         card = Card(
             client_id=client.id,
             card_id=_generate_card_id(client.product_id),
             cardholder_name=client.name,
             date_expires=_expiry_in_3_years(),
+            currency=currency,
             balance=100,  # balance inicial, igual que en la versión Java
             status=CardStatus.CREATED,
         )
@@ -87,11 +98,11 @@ class CardService:
         card.updated_at = datetime.utcnow()
         return self._cards.save(card)
 
-    def update_balance(self, card_id: str, balance: int) -> Card:
+    def update_balance(self, card_id: str, balance: float) -> Card:
         card = self.get_card(card_id)
         card.balance = balance
         card.updated_at = datetime.utcnow()
         return self._cards.save(card)
 
-    def get_balance(self, card_id: str) -> int:
+    def get_balance(self, card_id: str) -> float:
         return self.get_card(card_id).balance

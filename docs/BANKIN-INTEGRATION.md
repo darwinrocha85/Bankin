@@ -18,9 +18,18 @@ X-Api-Key: {BANKIN_API_KEY}      (solo si BankIn tiene EXTERNAL_API_KEY configur
 {
   "card_id": "1234567890123456",
   "amount": 49.90,
+  "currency": "COP",
   "note": "naveSpace Tickets"
 }
 ```
+
+- `currency` es la moneda en la que viene el cobro. Si se omite, se asume
+  la moneda de la tarjeta. **Si difiere de la moneda de la tarjeta**,
+  BankIn convierte con la tasa vigente (`GET /exchange-rates`) y descuenta
+  el monto convertido; la respuesta trae el detalle:
+  `amount` (cargo real en moneda de la tarjeta), `currency`,
+  `charge_amount` / `charge_currency` (lo pedido) y `rate_used` (tasa
+  aplicada, congelada para que la reversa devuelva el monto exacto).
 
 - **Local:** `BANKIN_API_BASE = http://localhost:8000`
 - **Producción:** `BANKIN_API_BASE = https://bankinback.onrender.com`
@@ -34,11 +43,34 @@ X-Api-Key: {BANKIN_API_KEY}      (solo si BankIn tiene EXTERNAL_API_KEY configur
   "card_id": "1234567890123456",
   "type": "PURCHASE",
   "amount": 49.90,
+  "currency": "COP",
+  "charge_amount": 49.90,
+  "charge_currency": "COP",
+  "rate_used": null,
   "status": "COMPLETED",
   "note": "naveSpace Tickets",
   "created_at": "...",
   "updated_at": "..."
 }
+```
+
+### Tasas de cambio (multimoneda)
+
+Cada tarjeta opera en una sola moneda (`COP`, `USD`, `EUR`). Tabla vigente
+y conversión, públicas (sin `manager_id`):
+
+```
+GET {BANKIN_API_BASE}/exchange-rates
+GET {BANKIN_API_BASE}/exchange-rates/history?base_currency=USD&target_currency=COP
+GET {BANKIN_API_BASE}/exchange-rates/convert?amount=10&base_currency=USD&target_currency=COP
+```
+
+Solo el gerente carga tasas (`?manager_id=`); cada carga crea una fila
+nueva (histórico, nunca se edita):
+
+```
+POST {BANKIN_API_BASE}/exchange-rates?manager_id=1
+{"base_currency": "USD", "target_currency": "COP", "rate": 4100}
 ```
 
 ### Errores a manejar
@@ -85,7 +117,37 @@ cargo que generó esa compra, no "el último cobro de esa tarjeta".
 ## Configuración necesaria en naveSpace
 
 - `BANKIN_API_BASE` — URL del backend de BankIn (local o Render).
-- `BANKIN_API_KEY` — mismo valor que `EXTERNAL_API_KEY` en el backend de BankIn (solo hace falta si esa variable está configurada ahí; si no, se puede omitir). Se usa tanto para `/purchase` como para `/transactions/{id}/reverse`.
+- `BANKIN_API_KEY` — mismo valor que `EXTERNAL_API_KEY` en el backend de BankIn (solo hace falta si esa variable está configurada ahí; si no, se puede omitir). Se usa tanto para `/purchase` como para `/transactions/{id}/reverse` y para `/payment-orders/*`.
+
+## Órdenes multitramo (precio base en EUR)
+
+La entrada solo se confirma cuando la orden llega a `PAID`. Cada tramo se
+convierte a EUR con la tasa vigente y queda congelado (`rate_to_eur`).
+
+```
+POST {BANKIN_API_BASE}/payment-orders
+{"reference": "MUS-AB12CD34", "total_eur": 50.0, "note": "naveSpace Tickets"}
+→ 201 {id, reference, total_eur, paid_eur: 0, remaining_eur: 50, status: PENDING}
+
+POST {BANKIN_API_BASE}/payment-orders/{id}/pay
+{"card_id": "1234", "amount": 20, "currency": "EUR",
+ "idempotency_key": "intento-1", "note": "naveSpace Tickets"}
+→ 200 {paid_eur: 20, remaining_eur: 30, status: PARTIAL, tranches: [...]}
+
+POST {BANKIN_API_BASE}/payment-orders/{id}/pay
+{"card_id": "5678", "amount": 20, "currency": "USD"}   # se convierte a EUR
+→ 200 {paid_eur: 38, remaining_eur: 12, status: PARTIAL}
+
+POST {BANKIN_API_BASE}/payment-orders/{id}/cancel   # reversa TODOS los tramos BankIn,
+                                                    # incluso si la orden ya está PAID (= devolución total)
+```
+
+- Un tramo que supere el restante falla con `400` (sobrepago). Reintentos con
+  la misma `idempotency_key` devuelven el tramo sin recobrar.
+- Adyen (en proceso, aún sin cobro real): `POST /payment-orders/{id}/adyen-intents`
+  registra la intención (no suma a `paid_eur`) y
+  `POST /payment-orders/adyen-tranches/{tranche_id}/confirm` la confirma
+  (stub del webhook; suma a `paid_eur`).
 
 ## Fuera de alcance por ahora
 

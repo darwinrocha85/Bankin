@@ -13,7 +13,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.adapters.inbound.api.deps import get_card_service
 from app.adapters.inbound.api.schemas import BalanceOut, BalanceUpdate, CardCreate, CardOut
-from app.application.card_service import CardNotFoundError, CardService, ClientNotFoundForCardError
+from app.application.card_service import (
+    CardAlreadyExistsError,
+    CardNotFoundError,
+    CardService,
+    ClientNotFoundForCardError,
+)
 
 router = APIRouter(prefix="/cards", tags=["cards"])
 
@@ -33,9 +38,11 @@ def list_cards(
 @router.post("", response_model=CardOut, status_code=201)
 def issue_card(payload: CardCreate, service: CardService = Depends(get_card_service)):
     try:
-        return service.issue_card(payload.client_id)
+        return service.issue_card(payload.client_id, payload.currency)
     except ClientNotFoundForCardError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CardAlreadyExistsError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/{card_id}", response_model=CardOut)
@@ -77,6 +84,7 @@ def update_balance(
 @router.get("/{card_id}/balance", response_model=BalanceOut)
 def get_balance(card_id: str, service: CardService = Depends(get_card_service)):
     try:
-        return {"balance": service.get_balance(card_id)}
+        card = service.get_card(card_id)
+        return {"balance": card.balance, "currency": card.currency}
     except CardNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

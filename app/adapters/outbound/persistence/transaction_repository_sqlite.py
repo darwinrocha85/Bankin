@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.adapters.outbound.persistence.orm_models import TransactionORM
-from app.domain.models import Transaction, TransactionStatus, TransactionType
+from app.domain.models import Currency, Transaction, TransactionStatus, TransactionType
 from app.domain.ports import TransactionRepository
 
 
@@ -15,6 +15,10 @@ def _to_domain(row: TransactionORM) -> Transaction:
         card_id=row.card_id,
         type=TransactionType(row.type),
         amount=row.amount,
+        currency=Currency(row.currency),
+        charge_amount=row.charge_amount,
+        charge_currency=Currency(row.charge_currency),
+        rate_used=row.rate_used,
         status=TransactionStatus(row.status),
         note=row.note,
         created_at=row.created_at,
@@ -32,6 +36,10 @@ class SqliteTransactionRepository(TransactionRepository):
                 card_id=transaction.card_id,
                 type=transaction.type.value,
                 amount=transaction.amount,
+                currency=transaction.currency.value,
+                charge_amount=transaction.charge_amount,
+                charge_currency=transaction.charge_currency.value,
+                rate_used=transaction.rate_used,
                 status=transaction.status.value,
                 note=transaction.note,
                 created_at=transaction.created_at,

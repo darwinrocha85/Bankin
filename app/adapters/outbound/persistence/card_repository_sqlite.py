@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.adapters.outbound.persistence.orm_models import CardORM
-from app.domain.models import Card, CardStatus
+from app.domain.models import Card, CardStatus, Currency
 from app.domain.ports import CardRepository
 
 
@@ -16,6 +16,7 @@ def _to_domain(row: CardORM) -> Card:
         card_id=row.card_id,
         cardholder_name=row.cardholder_name,
         date_expires=row.date_expires,
+        currency=Currency(row.currency),
         balance=row.balance,
         status=CardStatus(row.status),
         created_at=row.created_at,
@@ -34,6 +35,7 @@ class SqliteCardRepository(CardRepository):
                 card_id=card.card_id,
                 cardholder_name=card.cardholder_name,
                 date_expires=card.date_expires,
+                currency=card.currency.value,
                 balance=card.balance,
                 status=card.status.value,
                 created_at=card.created_at,
@@ -45,6 +47,7 @@ class SqliteCardRepository(CardRepository):
             row.client_id = card.client_id
             row.cardholder_name = card.cardholder_name
             row.date_expires = card.date_expires
+            row.currency = card.currency.value
             row.balance = card.balance
             row.status = card.status.value
         self._session.commit()
@@ -72,3 +75,11 @@ class SqliteCardRepository(CardRepository):
             .all()
         )
         return [_to_domain(row) for row in rows]
+
+    def find_by_client_and_currency(self, client_id: int, currency: Currency) -> Card | None:
+        row = self._session.execute(
+            select(CardORM).where(
+                CardORM.client_id == client_id, CardORM.currency == currency.value
+            )
+        ).scalar_one_or_none()
+        return _to_domain(row) if row else None

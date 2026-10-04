@@ -10,24 +10,29 @@ en la carpeta hermana `Bankin-frontend`.
 app/
   domain/                 <- Núcleo: entidades y puertos (interfaces).
                               Sin dependencias de frameworks.
-    models.py              <- Client, Role, Card, CardStatus, Transaction, TransactionType
-    ports.py                <- ClientRepository, CardRepository, TransactionRepository
+    models.py              <- Client, Role, Card (+Currency COP/USD/EUR), CardStatus,
+                               Transaction (+currency/charge_amount/charge_currency/rate_used),
+                               ExchangeRate
+    ports.py                <- ClientRepository, CardRepository (+find_by_client_and_currency),
+                               TransactionRepository, ExchangeRateRepository
 
   application/             <- Casos de uso. Dependen solo de los puertos.
     client_service.py
-    card_service.py
-    transaction_service.py
-    manager_service.py
+    card_service.py          <- emite 1 tarjeta por (cliente, moneda); duplicada = 409
+    transaction_service.py   <- compra/recarga con conversión a moneda de la tarjeta
+    exchange_rate_service.py <- tasa vigente (con fallback a inversa 1/rate), histórico
+    manager_service.py       <- overview con desglose por moneda
 
   adapters/
     inbound/api/            <- Adaptador de entrada: FastAPI
-      routers/               <- clients.py, cards.py, transactions.py, manager.py
+      routers/               <- clients.py, cards.py, transactions.py, exchange_rates.py, manager.py
       schemas.py               <- DTOs (Pydantic)
       deps.py                   <- Wiring (conecta SQLite con los casos de uso)
 
     outbound/persistence/   <- Adaptador de salida: SQLite vía SQLAlchemy
       db.py
-      orm_models.py
+      orm_models.py            <- + columna currency en cards, columnas de conversión
+                                  en transactions, tabla exchange_rates (append-only)
       *_repository_sqlite.py  <- Implementan los puertos de arriba
 
   main.py                  <- Arranque de la app FastAPI
@@ -103,12 +108,18 @@ nuevo adaptador que implemente los mismos puertos de `app/domain/ports.py`
 ## Dominio
 
 - **Cliente**: puede tener rol `CLIENT` o `MANAGER`.
-- **Tarjeta**: pertenece a un cliente (`client_id`), tiene estado
-  `CREATED` → `ACTIVE` → `CANCELLED`.
-- **Transacción**: `PURCHASE` (compra, descuenta saldo) o `RECHARGE`
-  (recarga, aumenta saldo). Puede anularse, lo que revierte su efecto en
-  el balance (con validaciones: no se puede anular una recarga si ese
-  dinero ya se gastó).
+- **Tarjeta**: pertenece a un cliente (`client_id`), tiene una `currency`
+  (`COP`/`USD`/`EUR`) y estado `CREATED` → `ACTIVE` → `CANCELLED`.
+  Cada cliente puede tener como máximo **una tarjeta por moneda** (POST
+  /cards duplicado devuelve `409`); los saldos son independientes.
+- **Transacción**: `PURCHASE` (descuenta) o `RECHARGE` (aumenta), en la
+  moneda de la tarjeta. Si el cobro llega en otra moneda (`currency` en el
+  body), se convierte con la tasa vigente y la tasa queda congelada en la
+  transacción (`rate_used`).
+- **Tasa de cambio**: par dirigido `base → target` (1 unidad de base =
+  `rate` de target). Solo el gerente la carga (`?manager_id=`); cada carga
+  es una fila nueva (histórico inmutable). Si solo existe el par inverso,
+  se resuelve por inversión (1/rate).
 - **Gerente**: puede ver toda la información del banco (todos los
   clientes, tarjetas y transacciones), no solo la suya. Sin login real:
   cada endpoint de gerente recibe `?manager_id=<id>` y se valida que ese
@@ -129,12 +140,20 @@ nuevo adaptador que implemente los mismos puertos de `app/domain/ports.py`
 | Método | Ruta                       | Descripción                     |
 |--------|----------------------------|-----------------------------------|
 | GET    | /cards                     | Lista todas (filtro `?client_id=`)|
-| POST   | /cards                     | Emite una tarjeta (`client_id`)   |
+| POST   | /cards                     | Emite una tarjeta (`client_id`, `currency`: COP/USD/EUR; 409 si ya tiene en esa moneda) |
 | GET    | /cards/{card_id}           | Obtiene una                       |
 | POST   | /cards/{card_id}/activate  | Activa                            |
 | DELETE | /cards/{card_id}           | Cancela (baja lógica)             |
 | PUT    | /cards/{card_id}/balance   | Fija el balance manualmente       |
-| GET    | /cards/{card_id}/balance   | Consulta el balance               |
+| GET    | /cards/{card_id}/balance   | Consulta el balance (+ moneda)    |
+
+### Tasas de cambio
+| Método | Ruta                       | Descripción                           |
+|--------|----------------------------|------------------------------------------|
+| GET    | /exchange-rates            | Tabla vigente (una fila por par, pública) |
+| GET    | /exchange-rates/history    | Histórico (filtros `?base_currency=` `?target_currency=` `?limit=`) |
+| GET    | /exchange-rates/convert    | Convierte un monto (`?amount=&base_currency=&target_currency=`) |
+| POST   | /exchange-rates            | Carga tasa (**solo gerente**, `?manager_id=`; `{"base_currency","target_currency","rate"}`) |
 
 ### Transacciones
 | Método | Ruta                          | Descripción                    |
@@ -157,8 +176,16 @@ POST /transactions/purchase
 Content-Type: application/json
 X-Api-Key: <tu EXTERNAL_API_KEY>     (solo si la configuraste, ver .env.example)
 
-{"card_id": "1234567890123456", "amount": 49.90, "note": "App POS Tienda X"}
+{"card_id": "1234567890123456", "amount": 49.90, "currency": "COP", "note": "App POS Tienda X"}
 ```
+
+`currency` es la moneda del cobro (si se omite, se asume la de la tarjeta).
+Si difiere de la moneda de la tarjeta, se convierte con la tasa vigente
+(`GET /exchange-rates`) y se descuenta el monto convertido; la respuesta
+trae `amount` (cargo real en moneda de la tarjeta), `charge_amount` /
+`charge_currency` (lo pedido) y `rate_used` (tasa aplicada, congelada para
+que una reversa posterior devuelva el monto exacto). Sin tasa vigente para
+el par, el cobro falla con `400`.
 
 Si no defines `EXTERNAL_API_KEY` en el backend, el header no se exige (así
 el demo sigue funcionando sin configurar nada extra). En cuanto la defines,
@@ -190,7 +217,8 @@ de BankIn -- por eso no pide `manager_id`. Reutiliza exactamente la misma
 regla de negocio que `/annul` (mismo caso de uso, dos puertas de entrada
 distintas): una compra revertida devuelve el dinero a la tarjeta, una
 recarga revertida lo retira (y falla con `400` si ese dinero ya se gastó en
-una compra posterior).
+una compra posterior). En cobros con conversión, la reversa devuelve el monto
+exacto en moneda de la tarjeta (usa la tasa congelada `rate_used`, no la vigente).
 
 ```
 POST /transactions/42/reverse
@@ -205,7 +233,7 @@ No requiere body.
 ### Gerente
 | Método | Ruta                       | Descripción                           |
 |--------|----------------------------|------------------------------------------|
-| GET    | /manager/overview          | Dashboard con totales del banco          |
+| GET    | /manager/overview          | Dashboard con totales del banco (con desglose por moneda) |
 | GET    | /manager/clients           | Todos los clientes                       |
 | GET    | /manager/clients/{id}      | Vista 360 de un cliente (datos+tarjetas+transacciones) |
 | GET    | /manager/cards             | Todas las tarjetas del banco              |

@@ -54,8 +54,14 @@ class ManagerService:
         transactions = self._transactions.find_all()
 
         cards_by_status = {status.value: 0 for status in CardStatus}
+        cards_by_currency: dict[str, int] = {}
+        balances_by_currency: dict[str, float] = {}
         for card in cards:
             cards_by_status[card.status.value] += 1
+            cur = card.currency.value
+            cards_by_currency[cur] = cards_by_currency.get(cur, 0) + 1
+            if card.status == CardStatus.ACTIVE:
+                balances_by_currency[cur] = balances_by_currency.get(cur, 0) + card.balance
 
         transactions_by_type = {t.value: 0 for t in TransactionType}
         for tx in transactions:
@@ -64,27 +70,31 @@ class ManagerService:
         total_balance_active = sum(
             card.balance for card in cards if card.status == CardStatus.ACTIVE
         )
-        total_purchased = sum(
-            tx.amount
-            for tx in transactions
-            if tx.type == TransactionType.PURCHASE and tx.status == TransactionStatus.COMPLETED
-        )
-        total_recharged = sum(
-            tx.amount
-            for tx in transactions
-            if tx.type == TransactionType.RECHARGE and tx.status == TransactionStatus.COMPLETED
-        )
+        purchased_by_currency: dict[str, float] = {}
+        recharged_by_currency: dict[str, float] = {}
+        for tx in transactions:
+            if tx.status != TransactionStatus.COMPLETED:
+                continue
+            cur = tx.currency.value
+            if tx.type == TransactionType.PURCHASE:
+                purchased_by_currency[cur] = purchased_by_currency.get(cur, 0) + tx.amount
+            elif tx.type == TransactionType.RECHARGE:
+                recharged_by_currency[cur] = recharged_by_currency.get(cur, 0) + tx.amount
 
         return {
             "total_clients": sum(1 for c in clients if c.role == Role.CLIENT),
             "total_managers": sum(1 for c in clients if c.role == Role.MANAGER),
             "total_cards": len(cards),
             "cards_by_status": cards_by_status,
+            "cards_by_currency": cards_by_currency,
             "total_balance_in_active_cards": total_balance_active,
+            "balances_by_currency": balances_by_currency,
             "total_transactions": len(transactions),
             "transactions_by_type": transactions_by_type,
-            "total_purchased_amount": total_purchased,
-            "total_recharged_amount": total_recharged,
+            "total_purchased_amount": sum(purchased_by_currency.values()),
+            "total_recharged_amount": sum(recharged_by_currency.values()),
+            "purchased_by_currency": purchased_by_currency,
+            "recharged_by_currency": recharged_by_currency,
         }
 
     def list_all_clients(self, manager_id: int):

@@ -34,7 +34,7 @@ load_dotenv()
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
-from app.adapters.inbound.api.routers import cards, clients, manager, transactions  # noqa: E402
+from app.adapters.inbound.api.routers import cards, clients, exchange_rates, manager, payment_orders, transactions  # noqa: E402
 from app.adapters.outbound.persistence.db import init_db  # noqa: E402
 
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")
@@ -86,6 +86,8 @@ app.add_middleware(
 app.include_router(clients.router)
 app.include_router(cards.router)
 app.include_router(transactions.router)
+app.include_router(payment_orders.router)
+app.include_router(exchange_rates.router)
 app.include_router(manager.router)
 
 

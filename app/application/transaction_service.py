@@ -1,14 +1,24 @@
 """Casos de uso relacionados con Transacciones: compra, recarga y anulación.
 
-A diferencia de la versión Java (deliberadamente incompleta: "purchase" no
-tocaba el balance), aquí una compra descuenta saldo de verdad, una recarga
-lo aumenta, y anular una transacción revierte su efecto sobre el balance.
+Multimoneda: cada tarjeta opera en su propia moneda. Si un cobro (o una
+recarga) llega en una moneda distinta a la de la tarjeta, se convierte con
+la tasa vigente (ExchangeRateService) y se descuenta/suma el monto ya
+convertido. La tasa aplicada queda congelada en la transacción (`rate_used`),
+así una anulación/reversa posterior devuelve exactamente lo que se movió,
+aunque la tasa haya cambiado desde entonces.
 """
 from __future__ import annotations
 
 from datetime import datetime
 
-from app.domain.models import CardStatus, Transaction, TransactionStatus, TransactionType
+from app.application.exchange_rate_service import ExchangeRateNotFoundError, ExchangeRateService
+from app.domain.models import (
+    CardStatus,
+    Currency,
+    Transaction,
+    TransactionStatus,
+    TransactionType,
+)
 from app.domain.ports import CardRepository, TransactionRepository
 
 
@@ -37,9 +47,15 @@ class TransactionAlreadyAnnulledError(Exception):
 
 
 class TransactionService:
-    def __init__(self, transaction_repository: TransactionRepository, card_repository: CardRepository) -> None:
+    def __init__(
+        self,
+        transaction_repository: TransactionRepository,
+        card_repository: CardRepository,
+        exchange_rate_service: ExchangeRateService | None = None,
+    ) -> None:
         self._transactions = transaction_repository
         self._cards = card_repository
+        self._rates = exchange_rate_service
 
     def _get_card_or_raise(self, card_id: str):
         card = self._cards.find_by_card_id(card_id)
@@ -47,32 +63,69 @@ class TransactionService:
             raise CardNotFoundForTransactionError(f"No existe la tarjeta {card_id}")
         return card
 
-    def purchase(self, card_id: str, amount: float, note: str | None = None) -> Transaction:
+    def _convert_to_card_currency(self, card, charge_amount: float, charge_currency: Currency | None):
+        """Devuelve (monto_en_moneda_tarjeta, moneda_cobro, tasa_usada).
+
+        Sin conversión (misma moneda o sin moneda indicada): tasa 1.0.
+        """
+        charge_currency = charge_currency or card.currency
+        if charge_currency == card.currency:
+            return charge_amount, charge_currency, None
+        if self._rates is None:
+            raise ExchangeRateNotFoundError(
+                f"La tarjeta es {card.currency.value} pero el cobro vino en "
+                f"{charge_currency.value} y no hay servicio de tasas configurado"
+            )
+        converted, resolved = self._rates.convert(charge_amount, charge_currency, card.currency)
+        return converted, charge_currency, resolved.rate
+
+    def purchase(
+        self,
+        card_id: str,
+        amount: float,
+        note: str | None = None,
+        currency: Currency | None = None,
+    ) -> Transaction:
+        """Compra: descuenta saldo. `amount` viene expresado en `currency`
+        (si se omite, se asume la moneda de la tarjeta). Con moneda distinta
+        se aplica la tasa vigente y se descuenta el monto convertido."""
         if amount <= 0:
             raise InvalidAmountError("El monto de la compra debe ser mayor que cero")
 
         card = self._get_card_or_raise(card_id)
         if card.status != CardStatus.ACTIVE:
             raise CardNotActiveError(f"La tarjeta {card_id} no está activa (status={card.status.value})")
-        if card.balance < amount:
+
+        debit, charge_currency, rate_used = self._convert_to_card_currency(card, amount, currency)
+        if card.balance < debit:
             raise InsufficientFundsError(
-                f"Saldo insuficiente: balance={card.balance}, monto={amount}"
+                f"Saldo insuficiente: balance={card.balance} {card.currency.value}, "
+                f"monto={debit:.2f} {card.currency.value}"
+                + (f" (cobro original: {amount} {charge_currency.value})" if rate_used else "")
             )
 
-        card.balance -= amount
+        card.balance -= debit
         card.updated_at = datetime.utcnow()
         self._cards.save(card)
 
         transaction = Transaction(
-            card_id=card_id, type=TransactionType.PURCHASE, amount=amount, note=note
+            card_id=card_id,
+            type=TransactionType.PURCHASE,
+            amount=debit,
+            currency=card.currency,
+            charge_amount=amount,
+            charge_currency=charge_currency,
+            rate_used=rate_used,
+            note=note,
         )
         return self._transactions.save(transaction)
 
-    def recharge(self, card_id: str, amount: float) -> Transaction:
-        """Recarga saldo a una tarjeta. Esto es lo que pediste: la tarjeta
-        debe poder recargar saldo, y quedar registrado como una transacción
-        más (con su fecha y su rastro de auditoría), no como un cambio
-        directo de balance por detrás.
+    def recharge(
+        self, card_id: str, amount: float, currency: Currency | None = None
+    ) -> Transaction:
+        """Recarga saldo a una tarjeta. Acepta moneda distinta con la misma
+        regla de conversión que `purchase`; queda registrada como
+        transacción auditable, no como cambio directo de balance.
         """
         if amount <= 0:
             raise InvalidAmountError("El monto de la recarga debe ser mayor que cero")
@@ -81,16 +134,29 @@ class TransactionService:
         if card.status == CardStatus.CANCELLED:
             raise CardNotActiveError(f"La tarjeta {card_id} está cancelada, no se puede recargar")
 
-        card.balance += amount
+        credit, charge_currency, rate_used = self._convert_to_card_currency(card, amount, currency)
+        card.balance += credit
         card.updated_at = datetime.utcnow()
         self._cards.save(card)
 
-        transaction = Transaction(card_id=card_id, type=TransactionType.RECHARGE, amount=amount)
+        transaction = Transaction(
+            card_id=card_id,
+            type=TransactionType.RECHARGE,
+            amount=credit,
+            currency=card.currency,
+            charge_amount=amount,
+            charge_currency=charge_currency,
+            rate_used=rate_used,
+        )
         return self._transactions.save(transaction)
 
     def annul(self, transaction_id: int) -> Transaction:
         """Anula una transacción existente y revierte su efecto en el balance:
         una compra anulada devuelve el dinero, una recarga anulada lo retira.
+
+        Multimoneda: se revierte `transaction.amount` (monto en moneda de la
+        tarjeta, con la conversión ya aplicada y congelada en `rate_used`),
+        así la devolución es exacta aunque la tasa vigente haya cambiado.
         """
         transaction = self._transactions.find_by_id(transaction_id)
         if transaction is None:

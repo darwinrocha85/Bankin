@@ -30,6 +30,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.adapters.inbound.api.deps import get_manager_service, get_transaction_service
 from app.adapters.inbound.api.schemas import PurchaseCreate, RechargeCreate, TransactionOut
 from app.adapters.inbound.api.security import require_api_key
+from app.application.exchange_rate_service import ExchangeRateNotFoundError
 from app.application.manager_service import ManagerNotFoundError, ManagerService, NotAManagerError
 from app.application.transaction_service import (
     CardNotActiveError,
@@ -70,10 +71,15 @@ def list_transactions_for_card(card_id: str, service: TransactionService = Depen
 )
 def purchase(payload: PurchaseCreate, service: TransactionService = Depends(get_transaction_service)):
     try:
-        return service.purchase(payload.card_id, payload.amount, payload.note)
+        return service.purchase(payload.card_id, payload.amount, payload.note, payload.currency)
     except CardNotFoundForTransactionError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except (CardNotActiveError, InsufficientFundsError, InvalidAmountError) as exc:
+    except (
+        CardNotActiveError,
+        InsufficientFundsError,
+        InvalidAmountError,
+        ExchangeRateNotFoundError,
+    ) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
@@ -84,10 +90,10 @@ def recharge(payload: RechargeCreate, service: TransactionService = Depends(get_
     de una forma que se puede consultar y, si hace falta, anular.
     """
     try:
-        return service.recharge(payload.card_id, payload.amount)
+        return service.recharge(payload.card_id, payload.amount, payload.currency)
     except CardNotFoundForTransactionError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except (CardNotActiveError, InvalidAmountError) as exc:
+    except (CardNotActiveError, InvalidAmountError, ExchangeRateNotFoundError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
